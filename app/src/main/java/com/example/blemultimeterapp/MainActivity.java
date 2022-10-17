@@ -5,7 +5,9 @@ import android.bluetooth.le.ScanResult;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.view.View;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -23,12 +25,10 @@ public class MainActivity extends FragmentActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         binding = ActivityMainBinding.inflate(getLayoutInflater());
-
-        com.example.blemultimeterapp.databinding.ActivityMainBinding binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
         binding.connectProgress.setVisibility(View.INVISIBLE);
-//        binding.deviceName.setVisibility(View.INVISIBLE);
+        binding.deviceName.setVisibility(View.INVISIBLE);
         binding.deviceReading.setVisibility(View.INVISIBLE);
 
         binding.scanButton.setOnClickListener(view -> {
@@ -44,19 +44,13 @@ public class MainActivity extends FragmentActivity {
 
     protected void connectDevice(ScanResult result) {
         BluetoothDevice device = result.getDevice();
-//        new Handler(Looper.getMainLooper()).post(() -> {
-        runOnUiThread(() -> {
-//            binding.connectProgress.setVisibility(View.VISIBLE);
-//            binding.connectProgress.requestLayout();
-//            binding.deviceName.setVisibility(View.VISIBLE);
-            binding.deviceName.setText(device.getName());
-//            binding.deviceName.requestLayout();
-//            binding.deviceReading.setVisibility(View.INVISIBLE);
+        binding.connectProgress.setVisibility(View.VISIBLE);
+        binding.deviceName.setVisibility(View.VISIBLE);
+        binding.deviceName.setText(device.getName());
+        binding.deviceReading.setVisibility(View.INVISIBLE);
 
-            Toast.makeText(this, device.getName(), Toast.LENGTH_SHORT)
-                    .show();
-        });
-
+        Toast.makeText(this, device.getName(), Toast.LENGTH_SHORT)
+                .show();
     }
 
     @Override
