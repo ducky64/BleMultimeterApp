@@ -14,6 +14,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.ParcelUuid;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -103,6 +104,23 @@ public class MainActivity extends Activity {
         }
     }
 
+    private final ScanCallback scanCallback = new ScanCallback() {
+        @Override
+        public void onScanResult(int callbackType, ScanResult result) {
+            OptionalInt index = IntStream.range(0, scanResults.size())
+                    .filter(i -> scanResults.get(i).getDevice().getAddress().equals(result.getDevice().getAddress()))
+                    .findFirst();
+            if (index.isPresent()) {  // update existing device
+                scanResults.set(index.getAsInt(), result);
+                scanResultAdapter.notifyItemChanged(index.getAsInt());
+            } else {  // add new device
+                scanResults.add(result);
+                scanResultAdapter.notifyItemInserted(scanResults.size() - 1);
+                binding.scanResultCount.setText("Scanning: " + scanResults.size());
+            }
+        }
+    };
+
     protected void startBleScan() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             Toast.makeText(this.getApplicationContext(), "Location permission required for BLE scan", Toast.LENGTH_SHORT)
@@ -118,37 +136,27 @@ public class MainActivity extends Activity {
             return;
         }
 
-        Toast.makeText(MainActivity.this.getApplicationContext(), "BLE Scan Start", Toast.LENGTH_SHORT)
-                .show();
-        binding.scanResultCount.setText("Scanning");
+        if (btScanner.isPresent()) {
+            btScanner.get().stopScan(scanCallback);
+            btScanner = Optional.empty();
+            binding.scanResultCount.setText("Found: " + scanResults.size());
+            return;
+        }
 
-        ScanFilter filter = new ScanFilter.Builder()
-//                .setDeviceName("DuckyMultimeter")
-                .build();
+        binding.scanResultCount.setText("Scanning");
         BluetoothLeScanner scanner = btAdapter.getBluetoothLeScanner();
         btScanner = Optional.of(scanner);
+        ScanFilter filter = new ScanFilter.Builder()
+//                .setServiceUuid(ParcelUuid.fromString("6E400001-B5A3-F393-E0A9-E50E24DCCA9E"))
+                .setDeviceName("DuckyMultimeter")
+                .build();
         ScanSettings settings = new ScanSettings.Builder()
                 .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
                 .build();
 
         scanResults.clear();
         scanResultAdapter.notifyDataSetChanged();
-        scanner.startScan(Arrays.asList(filter), settings, new ScanCallback() {
-            @Override
-            public void onScanResult(int callbackType, ScanResult result) {
-                OptionalInt index = IntStream.range(0, scanResults.size())
-                        .filter(i -> scanResults.get(i).getDevice().getAddress().equals(result.getDevice().getAddress()))
-                        .findFirst();
-                if (index.isPresent()) {  // update existing device
-                    scanResults.set(index.getAsInt(), result);
-                    scanResultAdapter.notifyItemChanged(index.getAsInt());
-                } else {  // add new device
-                    scanResults.add(result);
-                    scanResultAdapter.notifyItemInserted(scanResults.size() - 1);
-                    binding.scanResultCount.setText("Found: " + scanResults.size());
-                }
-            }
-        });
+        scanner.startScan(Arrays.asList(filter), settings, scanCallback);
 
     }
 }
