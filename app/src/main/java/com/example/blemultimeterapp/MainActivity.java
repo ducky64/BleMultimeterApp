@@ -55,6 +55,7 @@ public class MainActivity extends Activity {
         setContentView(binding.getRoot());
 
         binding.scanResults.setEdgeItemsCenteringEnabled(true);
+        binding.scanResults.setCircularScrollingGestureEnabled(true);
         binding.scanResults.setLayoutManager(new WearableLinearLayoutManager(this));
         binding.scanResults.setAdapter(scanResultAdapter);
 
@@ -119,6 +120,7 @@ public class MainActivity extends Activity {
 
         Toast.makeText(MainActivity.this.getApplicationContext(), "BLE Scan Start", Toast.LENGTH_SHORT)
                 .show();
+        binding.scanResultCount.setText("Scanning");
 
         ScanFilter filter = new ScanFilter.Builder()
 //                .setDeviceName("DuckyMultimeter")
@@ -134,19 +136,16 @@ public class MainActivity extends Activity {
         scanner.startScan(Arrays.asList(filter), settings, new ScanCallback() {
             @Override
             public void onScanResult(int callbackType, ScanResult result) {
-                Log.i("Scan", "Scan found " + result.getDevice().getName());
-
                 OptionalInt index = IntStream.range(0, scanResults.size())
                         .filter(i -> scanResults.get(i).getDevice().getAddress().equals(result.getDevice().getAddress()))
                         .findFirst();
                 if (index.isPresent()) {  // update existing device
                     scanResults.set(index.getAsInt(), result);
                     scanResultAdapter.notifyItemChanged(index.getAsInt());
-                    Log.i("Scan", "Notify changed " + index.getAsInt());
                 } else {  // add new device
                     scanResults.add(result);
                     scanResultAdapter.notifyItemInserted(scanResults.size() - 1);
-                    Log.i("Scan", "Notify insert " + (scanResults.size() - 1));
+                    binding.scanResultCount.setText("Found: " + scanResults.size());
                 }
             }
         });

@@ -24,7 +24,7 @@ public class ScanResultAdapter extends RecyclerView.Adapter<ScanResultAdapter.Vi
     @NonNull
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        RowScanResultBinding view = RowScanResultBinding.inflate(LayoutInflater.from(parent.getContext()));
+        RowScanResultBinding view = RowScanResultBinding.inflate(LayoutInflater.from(parent.getContext()), parent, false);
         return new ViewHolder(view);
     }
 
