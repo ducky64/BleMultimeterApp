@@ -8,13 +8,6 @@
     tools:context=".MainActivity"
     tools:deviceIds="wear">
 
-    <androidx.wear.widget.WearableRecyclerView
-        android:id="@+id/scanResults"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:scrollbars="vertical"
-        tools:listitem="@layout/row_scan_result" />
-
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/frameLayout"
         android:layout_width="match_parent"
@@ -36,12 +29,5 @@
             tools:layout_conversion_absoluteWidth="88dp" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
-
-    <TextView
-        android:id="@+id/scanResultCount"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:textAlignment="center"
-        tools:text="Results" />
 
 </androidx.wear.widget.BoxInsetLayout>
