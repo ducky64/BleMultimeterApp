@@ -17,7 +17,6 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.WindowManager;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -43,24 +42,20 @@ public class ScanResultFragment extends Fragment {
     private final static int kPermissionBluetoothRequestCode = 2;
     private final static int kPermissionLocationRequestCode = 3;
 
-    interface ResultSelectAction {
-        void action(ScanResult result);
-    }
-
-    public ScanResultFragment(ResultSelectAction action) {
-        super();
-        scanResultAdapter = new ScanResultAdapter(scanResults, result -> {
-            getParentFragmentManager().beginTransaction()
-                    .remove(this)
-                    .commit();
-            action.action(result);
-        });
-    }
+    public final static String kFragmentResultKey = ScanResultFragment.class.getName() + ".Result";
+    public final static String kFragmentResultBundleScanResult = ScanResultFragment.class.getName() + ".Result.ScanResult";
 
     private Optional<BluetoothLeScanner> btScanner = Optional.empty();
 
     final private List<ScanResult> scanResults = new ArrayList<>();
-    final private ScanResultAdapter scanResultAdapter;
+    final private ScanResultAdapter scanResultAdapter = new ScanResultAdapter(scanResults, result -> {
+        getParentFragmentManager().beginTransaction()
+                .remove(this)
+                .commit();
+        Bundle bundle = new Bundle();
+        bundle.putParcelable(kFragmentResultBundleScanResult, result);
+        getParentFragmentManager().setFragmentResult(kFragmentResultKey, bundle);
+    });
 
     @Nullable
     @Override
