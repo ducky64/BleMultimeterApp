@@ -40,18 +40,27 @@ public class ScanResultFragment extends Fragment {
     private FragmentScanResultBinding binding;
 
     private final static int kEnableBluetoothRequestCode = 1;
-
     private final static int kPermissionBluetoothRequestCode = 2;
     private final static int kPermissionLocationRequestCode = 3;
 
-    private BluetoothAdapter btAdapter = null;
+    interface ResultSelectAction {
+        void action(ScanResult result);
+    }
+
+    public ScanResultFragment(ResultSelectAction action) {
+        super();
+        scanResultAdapter = new ScanResultAdapter(scanResults, result -> {
+            getParentFragmentManager().beginTransaction()
+                    .remove(this)
+                    .commit();
+            action.action(result);
+        });
+    }
+
     private Optional<BluetoothLeScanner> btScanner = Optional.empty();
 
-    private List<ScanResult> scanResults = new ArrayList<>();
-    private ScanResultAdapter scanResultAdapter = new ScanResultAdapter(scanResults, result -> {
-        Toast.makeText(ScanResultFragment.this.getContext(), result.getDevice().getName(), Toast.LENGTH_SHORT)
-                .show();
-    });
+    final private List<ScanResult> scanResults = new ArrayList<>();
+    final private ScanResultAdapter scanResultAdapter;
 
     @Nullable
     @Override
@@ -71,10 +80,6 @@ public class ScanResultFragment extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
-        if (getActivity() != null && getActivity().getWindow() != null) {
-            getActivity().getWindow().addFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);
-        }
-
         startBleScan();
     }
 

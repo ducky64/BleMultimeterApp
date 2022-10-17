@@ -16,6 +16,10 @@ public class ScanResultAdapter extends RecyclerView.Adapter<ScanResultAdapter.Vi
     final private List<ScanResult> items;
     final private ClickAction onClick;
 
+    interface ClickAction {
+        void action(ScanResult result);
+    }
+
     public ScanResultAdapter(List<ScanResult> items, ClickAction onClick) {
         this.items = items;
         this.onClick = onClick;
@@ -36,10 +40,6 @@ public class ScanResultAdapter extends RecyclerView.Adapter<ScanResultAdapter.Vi
     @Override
     public int getItemCount() {
         return items.size();
-    }
-
-    interface ClickAction {
-        void action(ScanResult result);
     }
 
     class ViewHolder extends RecyclerView.ViewHolder {
