@@ -48,9 +48,6 @@ public class MainActivity extends FragmentActivity {
         binding.deviceName.setVisibility(View.VISIBLE);
         binding.deviceName.setText(device.getName());
         binding.deviceReading.setVisibility(View.INVISIBLE);
-
-        Toast.makeText(this, device.getName(), Toast.LENGTH_SHORT)
-                .show();
     }
 
     @Override
