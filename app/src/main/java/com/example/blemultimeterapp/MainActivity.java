@@ -3,18 +3,12 @@ package com.example.blemultimeterapp;
 import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
-import android.bluetooth.BluetoothGattCallback;
-import android.bluetooth.BluetoothGattCharacteristic;
-import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothGattService;
-import android.bluetooth.BluetoothProfile;
 import android.bluetooth.le.ScanResult;
 import android.content.Context;
 import android.os.Bundle;
-import android.os.ParcelUuid;
 import android.util.Log;
 import android.view.View;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.fragment.app.FragmentActivity;
@@ -22,10 +16,12 @@ import androidx.fragment.app.FragmentActivity;
 import com.example.blemultimeterapp.databinding.ActivityMainBinding;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import no.nordicsemi.android.ble.BleManager;
+import no.nordicsemi.android.ble.data.Data;
 
 
 class MultimeterService {
@@ -42,6 +38,8 @@ class MultimeterService {
     public static UUID kUuidMode = applyUuidOffset(kUuidService, 2);
     public static UUID kUuidAdc = applyUuidOffset(kUuidService, 3);
     public static UUID kUuidResistance = applyUuidOffset(kUuidService, 4);
+
+    public static List<UUID> allCharacteristicUuids = Arrays.asList(kUuidReading, kUuidMode, kUuidAdc, kUuidResistance);
 }
 
 
@@ -84,6 +82,8 @@ public class MainActivity extends FragmentActivity {
             super(context);
         }
 
+        Optional<BluetoothGattService> multimeterService = Optional.empty();
+
         @NonNull
         @Override
         protected BleManagerGattCallback getGattCallback() {
@@ -93,135 +93,46 @@ public class MainActivity extends FragmentActivity {
         private class GattCallbackImpl extends BleManagerGattCallback {
             @Override
             protected boolean isRequiredServiceSupported(@NonNull BluetoothGatt gatt) {
-                return false;
+                multimeterService = Optional.ofNullable(gatt.getService(MultimeterService.kUuidService));
+                if (!multimeterService.isPresent()) {
+                    return false;
+                }
+                BluetoothGattService service = multimeterService.get();
+                for (UUID characteristicUuid : MultimeterService.allCharacteristicUuids) {
+                    if (service.getCharacteristic(characteristicUuid) == null) {
+                        return false;
+                    }
+                }
+                return true;
             }
 
             @Override
             protected void initialize() {
+                requestMtu(517)
+                        .enqueue();
+
+                if (!multimeterService.isPresent()) {
+                    Log.wtf("MultimeterBleManager", "multimeterService missing in initialize()");
+                    return;
+                }
+                BluetoothGattService service = multimeterService.get();
+                setNotificationCallback(service.getCharacteristic(MultimeterService.kUuidReading))
+                        .with((device, data) -> {
+                            Log.i("MultimeterBleManager", "Reading = " + data.getIntValue(Data.FORMAT_SINT32_LE, 0));
+                        });
+                for (UUID characteristicUuid : MultimeterService.allCharacteristicUuids) {
+                    enableNotifications(service.getCharacteristic(characteristicUuid))
+                            .enqueue();
+                }
 
             }
 
             @Override
             protected void onServicesInvalidated() {
-
+                multimeterService = Optional.empty();
             }
         }
     }
-
-
-
-    private BluetoothGattCallback gattCallback = new BluetoothGattCallback() {
-        @Override
-        @SuppressLint("MissingPermission")  // BLUETOOTH_CONNECT permission handled in ScanResultFragment
-        public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
-            super.onConnectionStateChange(gatt, status, newState);
-            Log.i("BluetoothGattCallback", "State change -> " + newState + " status=" + status);
-            if (newState == BluetoothProfile.STATE_CONNECTED) {
-                connectedGatt = Optional.of(gatt);
-
-                runOnUiThread(() -> {
-                    binding.deviceName.setText(gatt.getDevice().getName());
-                });
-
-                // running on UI thread recommended to avoid potential deadlock: https://punchthrough.com/android-ble-guide/
-                runOnUiThread(() -> {
-                    gatt.discoverServices();
-                });
-
-            } else {
-                gatt.close();
-                connectedGatt = Optional.empty();
-
-                runOnUiThread(() -> {
-                    Toast.makeText(MainActivity.this.getApplicationContext(),
-                                    "Unexpected connection state change -> " + newState + ", status=" + status,
-                                    Toast.LENGTH_SHORT)
-                            .show();
-                    binding.connectProgress.setVisibility(View.INVISIBLE);
-                    binding.deviceName.setVisibility(View.INVISIBLE);
-                    binding.deviceReading.setVisibility(View.INVISIBLE);
-                });
-            }
-        }
-
-        @Override
-        public void onMtuChanged(BluetoothGatt gatt, int mtu, int status) {
-            super.onMtuChanged(gatt, mtu, status);
-            Log.i("BluetoothGattCallback", "MTU changed -> " + mtu);
-        }
-
-        @Override
-        @SuppressLint("MissingPermission")  // BLUETOOTH_CONNECT permission handled in ScanResultFragment
-        public void onServicesDiscovered(BluetoothGatt gatt, int status) {
-            super.onServicesDiscovered(gatt, status);
-            for (BluetoothGattService service : gatt.getServices()) {
-                Log.i("BluetoothGattCallback", "Discovered service " + service.getUuid());
-                for (BluetoothGattCharacteristic characteristic : service.getCharacteristics()) {
-                    Log.i("BluetoothGattCallback", "  with characteristic " + characteristic.getUuid());
-                }
-            }
-            BluetoothGattService multimeterService = gatt.getService(MultimeterService.kUuidService);
-            if (multimeterService == null) {
-                Log.e("BluetoothGattCallback", "Missing GATT service");
-                runOnUiThread(() -> {
-                    Toast.makeText(MainActivity.this.getApplicationContext(),
-                                    "Missing GATT service", Toast.LENGTH_SHORT)
-                            .show();
-                });
-                return;
-            }
-            BluetoothGattCharacteristic readingChar = multimeterService.getCharacteristic(MultimeterService.kUuidReading);
-            BluetoothGattCharacteristic modeChar = multimeterService.getCharacteristic(MultimeterService.kUuidMode);
-            BluetoothGattCharacteristic adcChar = multimeterService.getCharacteristic(MultimeterService.kUuidAdc);
-            BluetoothGattCharacteristic resistanceChar = multimeterService.getCharacteristic(MultimeterService.kUuidResistance);
-            if (readingChar == null || modeChar == null || adcChar == null || resistanceChar == null) {
-                Log.e("BluetoothGattCallback", "Missing GATT characteristics");
-                runOnUiThread(() -> {
-                    Toast.makeText(MainActivity.this.getApplicationContext(),
-                                    "Missing GATT characteristics", Toast.LENGTH_SHORT)
-                            .show();
-                });
-                return;
-            }
-
-            if (!gatt.setCharacteristicNotification(readingChar, true)
-                    || !gatt.setCharacteristicNotification(adcChar, true)
-                    || !gatt.setCharacteristicNotification(modeChar, true)
-                    || !gatt.setCharacteristicNotification(resistanceChar, true)) {
-                Log.e("BluetoothGattCallback", "Can't set notifications");
-                runOnUiThread(() -> {
-                    Toast.makeText(MainActivity.this.getApplicationContext(),
-                                    "Can't set notifications", Toast.LENGTH_SHORT)
-                            .show();
-                });
-                return;
-            }
-            BluetoothGattDescriptor descriptor;
-            descriptor = readingChar.getDescriptor(kUuidCccDescriptor);
-            descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
-            gatt.writeDescriptor(descriptor);
-
-            descriptor = adcChar.getDescriptor(kUuidCccDescriptor);
-            descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
-            gatt.writeDescriptor(descriptor);
-
-            descriptor = modeChar.getDescriptor(kUuidCccDescriptor);
-            descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
-            gatt.writeDescriptor(descriptor);
-
-            runOnUiThread(() -> {
-                binding.connectProgress.setVisibility(View.INVISIBLE);
-                binding.deviceReading.setText("-");  // initialize blank reading
-                binding.deviceReading.setVisibility(View.VISIBLE);
-            });
-        }
-
-        @Override
-        public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
-            super.onCharacteristicChanged(gatt, characteristic);
-            Log.i("BluetoothGattCallback", "Characteristic changed " + characteristic.getUuid() + " -> " + Arrays.toString(characteristic.getValue()));
-        }
-    };
 
     @SuppressLint("MissingPermission")  // BLUETOOTH_CONNECT permission handled in ScanResultFragment
     protected void connectDevice(ScanResult result) {
@@ -231,7 +142,20 @@ public class MainActivity extends FragmentActivity {
         binding.deviceName.setText("Connecting " + device.getName());
         binding.deviceReading.setVisibility(View.INVISIBLE);
 
-        device.connectGatt(getApplicationContext(), false, gattCallback);
+        new MultimeterBleManager(getApplicationContext()).connect(device)
+                .retry(3)
+                .done(cbDevice -> {
+                    binding.connectProgress.setVisibility(View.INVISIBLE);
+                    binding.deviceName.setText(device.getName());
+                    binding.deviceReading.setText("-");
+                    binding.deviceReading.setVisibility(View.VISIBLE);
+                })
+                .fail((cbDevice, status) -> {
+                    binding.connectProgress.setVisibility(View.INVISIBLE);
+                    binding.deviceName.setText("Failed " + device.getName());
+                })
+                .enqueue();
+
         Log.i("MainActivity", "Connecting GATT: " + device.getName() + " " + device.getAddress());
     }
 
@@ -239,5 +163,4 @@ public class MainActivity extends FragmentActivity {
     protected void onResume() {
         super.onResume();
     }
-
 }
