@@ -25,7 +25,10 @@ public class MultimeterService {
 
     // Enums
     public enum Mode {
-        kVoltage(0), kResistance(1), kDiode(2), kContinuity(3);
+        kVoltage(0, "Voltage", "V"),
+        kResistance(1, "Resistance", "Ω"),
+        kDiode(2, "Diode", "⏄"),
+        kContinuity(3, "Continuity", "🕪");
 
         final static private HashMap<Integer, Mode> mapping = new HashMap<>();
         static {
@@ -39,9 +42,13 @@ public class MultimeterService {
         }
 
         final public int value;
+        final public String humanName;
+        final public String symbol;
 
-        Mode(int value) {
+        Mode(int value, String humanName, String symbol) {
             this.value = value;
+            this.humanName = humanName;
+            this.symbol = symbol;
         }
 
     }

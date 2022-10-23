@@ -6,6 +6,7 @@ import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattService;
 import android.content.Context;
 import android.os.Bundle;
+import android.os.Vibrator;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -28,6 +29,7 @@ public class MultimeterFragment extends Fragment {
 
     public final static String kFragmentArgDevice = MultimeterFragment.class.getName() + ".Device";
 
+    private Optional<Vibrator> vibrator = Optional.empty();
     private Optional<MultimeterBleManager> bleManager = Optional.empty();
 
     private Optional<MultimeterService.Mode> mode = Optional.empty();
@@ -40,6 +42,7 @@ public class MultimeterFragment extends Fragment {
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         binding = FragmentMultimeterBinding.inflate(inflater, container, false);
+        vibrator = Optional.of((Vibrator)getContext().getSystemService(Context.VIBRATOR_SERVICE));
         return binding.getRoot();
     }
 
@@ -85,7 +88,7 @@ public class MultimeterFragment extends Fragment {
 
     public void onReadingUpdate(BluetoothDevice device, Data data) {
         Integer value = data.getIntValue(Data.FORMAT_SINT32_LE, 0);
-        Log.i("MultimeterBleManager", "Reading = " + value);
+        Log.d("MultimeterBleManager", "Reading = " + value);
 
         if (!mode.isPresent() || (
                 mode.get() != MultimeterService.Mode.kVoltage
@@ -102,7 +105,7 @@ public class MultimeterFragment extends Fragment {
 
     public void onResistanceUpdate(BluetoothDevice device, Data data) {
         Integer value = data.getIntValue(Data.FORMAT_UINT32_LE, 0);
-        Log.i("MultimeterBleManager", "Resistance = " + value);
+        Log.d("MultimeterBleManager", "Resistance = " + value);
 
         if (!mode.isPresent() || (
                 mode.get() != MultimeterService.Mode.kResistance
@@ -113,13 +116,19 @@ public class MultimeterFragment extends Fragment {
         if (value == null) {
             binding.deviceReading.setText("?");
         } else {
-            binding.deviceReading.setText(((float)value / 1000) + " Ω");
+            float resistance =  (float)value / 1000;
+            binding.deviceReading.setText(resistance + " Ω");
+
+            if (resistance >= 0 && resistance <= 10
+                    && mode.get() == MultimeterService.Mode.kContinuity && vibrator.isPresent()) {
+                vibrator.get().vibrate(150);
+            }
         }
     }
 
     public void onModeUpdate(BluetoothDevice device, Data data) {
         Integer value = data.getIntValue(Data.FORMAT_UINT8, 0);
-        Log.i("MultimeterBleManager", "Mode = " + value);
+        Log.d("MultimeterBleManager", "Mode = " + value);
 
         if (value == null) {
             mode = Optional.empty();
@@ -127,7 +136,12 @@ public class MultimeterFragment extends Fragment {
         } else {
             Optional<MultimeterService.Mode> mode = MultimeterService.Mode.fromValue(value);
             this.mode = mode;
-            binding.mode.setText(mode.toString());
+            if (mode.isPresent()) {
+                binding.mode.setText(mode.get().symbol);
+            } else {
+                binding.mode.setText("?");
+            }
+
         }
     }
 
