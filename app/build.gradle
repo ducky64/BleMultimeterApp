@@ -35,4 +35,6 @@ dependencies {
     implementation 'androidx.recyclerview:recyclerview:1.2.1'
     implementation 'androidx.fragment:fragment:1.5.3'
     implementation 'androidx.wear:wear:1.2.0'
+
+    implementation 'no.nordicsemi.android:ble:2.6.0-alpha03'
 }
