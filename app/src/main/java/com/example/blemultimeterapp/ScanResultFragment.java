@@ -1,6 +1,7 @@
 package com.example.blemultimeterapp;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothManager;
@@ -157,6 +158,7 @@ public class ScanResultFragment extends Fragment {
         scanner.startScan(Arrays.asList(filter), settings, scanCallback);
     }
 
+    @SuppressLint("MissingPermission")  // BLUETOOTH_SCAN permissions handled in scan start
     protected void stopBleScan() {
         if (btScanner.isPresent()) {
             btScanner.get().stopScan(scanCallback);
