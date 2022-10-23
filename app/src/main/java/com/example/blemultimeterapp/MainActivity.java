@@ -16,6 +16,7 @@ import androidx.fragment.app.FragmentActivity;
 import com.example.blemultimeterapp.databinding.ActivityMainBinding;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -40,6 +41,25 @@ class MultimeterService {
     public static UUID kUuidResistance = applyUuidOffset(kUuidService, 4);
 
     public static List<UUID> allCharacteristicUuids = Arrays.asList(kUuidReading, kUuidMode, kUuidAdc, kUuidResistance);
+
+    // Enums
+    public enum Mode {
+        kVoltage(0), kResistance(1), kDiode(2), kContinuity(3);
+
+        static private HashMap<Integer, Mode> mapping;
+        static {
+            for (Mode mode : Mode.values()) {
+                assert !mapping.containsKey(mode.value);
+                mapping.put(mode.value, mode);
+            }
+        }
+
+        final public int value;
+        Mode(int value) {
+            this.value = value;
+        }
+
+    }
 }
 
 
@@ -118,7 +138,22 @@ public class MainActivity extends FragmentActivity {
                 BluetoothGattService service = multimeterService.get();
                 setNotificationCallback(service.getCharacteristic(MultimeterService.kUuidReading))
                         .with((device, data) -> {
-                            Log.i("MultimeterBleManager", "Reading = " + data.getIntValue(Data.FORMAT_SINT32_LE, 0));
+                            Integer value = data.getIntValue(Data.FORMAT_SINT32_LE, 0);
+                            if (value == null) {
+                                binding.deviceReading.setText("?");
+                            } else {
+                                binding.deviceReading.setText(((float)value / 1000) + " V");
+                            }
+
+                            Log.i("MultimeterBleManager", "Reading = " + value);
+                        });
+                setNotificationCallback(service.getCharacteristic(MultimeterService.kUuidAdc))
+                        .with((device, data) -> {
+                            Log.i("MultimeterBleManager", "ADC = " + data.getIntValue(Data.FORMAT_SINT32_LE, 0));
+                        });
+                setNotificationCallback(service.getCharacteristic(MultimeterService.kUuidMode))
+                        .with((device, data) -> {
+                            Log.i("MultimeterBleManager", "Mode = " + data.getIntValue(Data.FORMAT_UINT8, 0));
                         });
                 for (UUID characteristicUuid : MultimeterService.allCharacteristicUuids) {
                     enableNotifications(service.getCharacteristic(characteristicUuid))
